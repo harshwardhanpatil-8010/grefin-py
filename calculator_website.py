@@ -30,7 +30,7 @@ class CarbonFootprintCalculator:
             data_transferred = len(response.content) / (1024 ** 2) # Convert bytes to megabytes
             hours = 0.1 # Assuming 6 minutes of usage
             total_emissions = self.calculate_total_emissions(hours, data_transferred)
-            green_score = max(0, 100 - total_emissions) # Example scoring logic
+            green_score = max(0, 100 - total_emissions) 
             return green_score
         except Exception as e:
             print(f"Error calculating green score: {e}")
