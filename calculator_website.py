@@ -3,41 +3,53 @@ import pandas as pd
 import requests
 
 class CarbonFootprintCalculator:
-    def __init__(self, carbon_intensity=475, energy_intensity=0.81):
-        self.carbon_intensity = carbon_intensity # grams CO2 per kWh
-        self.energy_intensity = energy_intensity # kWh per GB
+    def __init__(self, electricity_emission_factor, server_power_usage, energy_intensity_of_network, device_power_usage):
+        self.electricity_emission_factor = electricity_emission_factor
+        self.server_power_usage = server_power_usage
+        self.energy_intensity_of_network = energy_intensity_of_network
+        self.device_power_usage = device_power_usage
 
-    def calculate_emissions_per_page_view(self, data_transfer_mb):
-        data_transfer_gb = data_transfer_mb / 1024 # Convert MB to GB
-        energy_consumed = data_transfer_gb * self.energy_intensity # kWh
-        emissions = energy_consumed * self.carbon_intensity # grams CO2
-        return emissions
+    def calculate_server_emissions(self, hours):
+        return self.server_power_usage * hours * self.electricity_emission_factor
 
-    def calculate_annual_emissions(self, data_transfer_mb, annual_page_views):
-        emissions_per_view = self.calculate_emissions_per_page_view(data_transfer_mb)
-        annual_emissions = emissions_per_view * annual_page_views # grams CO2
-        return annual_emissions
+    def calculate_network_emissions(self, data_transferred):
+        return data_transferred * self.energy_intensity_of_network
 
-    def calculate_green_score(self, annual_emissions):
-        green_score = max(0, 100 - (annual_emissions / 1000000)) # Example: Deduct 1 point per metric ton
-        return green_score
+    def calculate_device_emissions(self, hours):
+        return self.device_power_usage * hours * self.electricity_emission_factor
+
+    def calculate_total_emissions(self, hours, data_transferred):
+        server_emissions = self.calculate_server_emissions(hours)
+        network_emissions = self.calculate_network_emissions(data_transferred)
+        device_emissions = self.calculate_device_emissions(hours)
+        return server_emissions + network_emissions + device_emissions
+
+    def calculate_green_score(self, url):
+        try:
+            response = requests.get(url)
+            data_transferred = len(response.content) / (1024 ** 2) # Convert bytes to megabytes
+            hours = 0.1 # Assuming 6 minutes of usage
+            total_emissions = self.calculate_total_emissions(hours, data_transferred)
+            green_score = max(0, 100 - total_emissions) # Example scoring logic
+            return green_score
+        except Exception as e:
+            print(f"Error calculating green score: {e}")
+            return None
 
 if __name__ == "__main__":
-    carbon_intensity = 475 # Global average in grams CO2 per kWh
-    energy_intensity = 0.81 # kWh per GB of data transfer
+    electricity_emission_factor = 0.5
+    server_power_usage = 300
+    energy_intensity_of_network = 0.02
+    device_power_usage = 50
 
-    calculator = CarbonFootprintCalculator(carbon_intensity, energy_intensity)
+    calculator = CarbonFootprintCalculator(
+        electricity_emission_factor, 
+        server_power_usage, 
+        energy_intensity_of_network, 
+        device_power_usage
+    )
 
-    try:
-        url = input("Enter the website URL: ")
-        response = requests.get(url)
-        data_transfer_mb = len(response.content) / (1024 ** 2) # Convert bytes to MB
-        annual_page_views = int(input("Enter the estimated annual page views: "))
-
-        annual_emissions = calculator.calculate_annual_emissions(data_transfer_mb, annual_page_views)
-        green_score = calculator.calculate_green_score(annual_emissions)
-
-        print(f"Annual CO2 Emissions for {url}: {annual_emissions / 1000:.2f} kg CO2")
+    url = input("Enter the website URL: ")
+    green_score = calculator.calculate_green_score(url)
+    if green_score is not None:
         print(f"Green Score for {url}: {green_score}")
-    except Exception as e:
-        print(f"Error calculating emissions: {e}")
