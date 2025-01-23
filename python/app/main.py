@@ -3,11 +3,12 @@ from pymongo import MongoClient
 import pandas as pd
 import joblib
 from fastapi.middleware.cors import CORSMiddleware
-
+import logging
 # Allow CORS from any origin
 
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all HTTP methods
     allow_headers=["*"],  # Allows all headers
 )
+logging.basicConfig(level=logging.INFO)
+
 # Load pre-trained model and preprocessors
 model = joblib.load("model.pkl")
 imputer = joblib.load("imputer.pkl")
@@ -57,13 +60,18 @@ def preprocess_input(data: pd.DataFrame):
 @app.get("/calculate_green_score/{industry}")
 def calculate_green_score(industry: str):
     try:
+        logging.info(f"Fetching green score for industry: {industry}")
+        
         # Normalize the industry name
         industry = industry.strip().lower().replace(" ", "_")
 
         # Fetch industry data from MongoDB
         industry_data = collection.find_one({"industry": industry})
         if not industry_data:
+            logging.error(f"Industry '{industry}' not found in database")
             raise HTTPException(status_code=404, detail=f"Industry '{industry}' not found")
+
+        logging.info(f"Industry data fetched: {industry_data}")
 
         # Convert MongoDB data to DataFrame
         input_data = pd.DataFrame([industry_data])
@@ -85,6 +93,8 @@ def calculate_green_score(industry: str):
             "spend": input_data["operational_spend"].iloc[0],
         }
 
+        logging.info(f"Response generated: {response}")
         return response
     except Exception as e:
+        logging.error(f"Error calculating green score: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
