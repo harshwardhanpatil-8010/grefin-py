@@ -1,0 +1,11 @@
+numpy
+pandas
+scikit-learn
+fastapi
+joblib
+pymongo
+pydantic
+uvicorn
+requests
+openpyxl
+gunicorn
